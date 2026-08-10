@@ -97,6 +97,7 @@ export default function DashboardPage() {
   const todoTasks = filteredTasks.filter(t => t.status === 'TODO');
   const doingTasks = filteredTasks.filter(t => t.status === 'IN_PROGRESS');
   const doneTasks = filteredTasks.filter(t => t.status === 'DONE');
+  const onHoldTasks = filteredTasks.filter(t => t.status === 'ON_HOLD');
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#FDFDFD] dark:bg-[#0a0a0a] animate-fade-in animate-slide-up">
@@ -456,50 +457,235 @@ export default function DashboardPage() {
                  <Plus className="w-4 h-4" /> Add Task
                </button>
              </div>
+             
+             {/* Completed Column */}
+             <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
+               <div className="flex items-center justify-between px-1">
+                 <div className="flex items-center gap-2">
+                   <div className="w-4 h-4 rounded-full border-2 border-gray-400 dark:border-gray-500 opacity-70" />
+                   <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Completed</span>
+                 </div>
+                 <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                   <button 
+                     onClick={() => handleCreateTask('DONE')}
+                     className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors"
+                   >
+                     <Plus className="w-4 h-4" />
+                   </button>
+                   <div className="relative">
+                     <button 
+                       onClick={() => setActiveColumnMenu(activeColumnMenu === 'DONE' ? null : 'DONE')}
+                       className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded tracking-widest leading-none font-bold pb-1.5 transition-colors"
+                     >
+                       ...
+                     </button>
+                     {activeColumnMenu === 'DONE' && (
+                       <>
+                         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveColumnMenu(null); }} />
+                         <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                           <button 
+                             onClick={() => { handleClearColumn('DONE'); setActiveColumnMenu(null); }}
+                             className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                           >
+                             Clear Column
+                           </button>
+                         </div>
+                       </>
+                     )}
+                   </div>
+                 </div>
+               </div>
+               {doneTasks.map(task => (
+                 <div 
+                    key={task.id} 
+                    className="relative bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm flex flex-col gap-4 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-600 transition-colors"
+                    onClick={() => setSelectedTaskId(task.id)}
+                 >
+                   <div className="flex items-start justify-between gap-2">
+                     <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{task.title}</h3>
+                     <div className="relative">
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(activeTaskMenu === task.id ? null : task.id); }}
+                         className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 tracking-widest leading-none font-bold pb-1.5 px-1 transition-colors"
+                       >
+                         ...
+                       </button>
+                       {activeTaskMenu === task.id && (
+                         <>
+                           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(null); }} />
+                           <div className="absolute top-full right-0 mt-1 w-28 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); setActiveTaskMenu(null); }}
+                               className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                             >
+                               Delete Task
+                             </button>
+                           </div>
+                         </>
+                       )}
+                     </div>
+                   </div>
+                   {(visibleFields.Members || visibleFields.Priority) && (
+                     <div className="flex items-center justify-between mt-1">
+                       <div className="flex items-center gap-2">
+                         {visibleFields.Members && (
+                           <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
+                         )}
+                       </div>
+                       {visibleFields.Priority && (
+                         <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded">{task.priority}</span>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               ))}
+               <button 
+                 onClick={() => handleCreateTask('DONE')}
+                 className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors w-full text-left mt-1"
+               >
+                 <Plus className="w-4 h-4" /> Add Task
+               </button>
+             </div>
+
+             {/* On Hold Column */}
+             <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
+               <div className="flex items-center justify-between px-1">
+                 <div className="flex items-center gap-2">
+                   <div className="w-4 h-4 border-2 border-gray-400 dark:border-gray-500 border-dashed rounded-sm opacity-70" />
+                   <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">On Hold</span>
+                 </div>
+                 <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                   <button 
+                     onClick={() => handleCreateTask('ON_HOLD')}
+                     className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors"
+                   >
+                     <Plus className="w-4 h-4" />
+                   </button>
+                   <div className="relative">
+                     <button 
+                       onClick={() => setActiveColumnMenu(activeColumnMenu === 'ON_HOLD' ? null : 'ON_HOLD')}
+                       className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded tracking-widest leading-none font-bold pb-1.5 transition-colors"
+                     >
+                       ...
+                     </button>
+                     {activeColumnMenu === 'ON_HOLD' && (
+                       <>
+                         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveColumnMenu(null); }} />
+                         <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                           <button 
+                             onClick={() => { handleClearColumn('ON_HOLD'); setActiveColumnMenu(null); }}
+                             className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                           >
+                             Clear Column
+                           </button>
+                         </div>
+                       </>
+                     )}
+                   </div>
+                 </div>
+               </div>
+               {onHoldTasks.map(task => (
+                 <div 
+                    key={task.id} 
+                    className="relative bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm flex flex-col gap-4 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-600 transition-colors opacity-75"
+                    onClick={() => setSelectedTaskId(task.id)}
+                 >
+                   <div className="flex items-start justify-between gap-2">
+                     <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{task.title}</h3>
+                     <div className="relative">
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(activeTaskMenu === task.id ? null : task.id); }}
+                         className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 tracking-widest leading-none font-bold pb-1.5 px-1 transition-colors"
+                       >
+                         ...
+                       </button>
+                       {activeTaskMenu === task.id && (
+                         <>
+                           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(null); }} />
+                           <div className="absolute top-full right-0 mt-1 w-28 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); setActiveTaskMenu(null); }}
+                               className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                             >
+                               Delete Task
+                             </button>
+                           </div>
+                         </>
+                       )}
+                     </div>
+                   </div>
+                   {(visibleFields.Members || visibleFields.Priority) && (
+                     <div className="flex items-center justify-between mt-1">
+                       <div className="flex items-center gap-2">
+                         {visibleFields.Members && (
+                           <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
+                         )}
+                       </div>
+                       {visibleFields.Priority && (
+                         <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded">{task.priority}</span>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               ))}
+               <button 
+                 onClick={() => handleCreateTask('ON_HOLD')}
+                 className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors w-full text-left mt-1"
+               >
+                 <Plus className="w-4 h-4" /> Add Task
+               </button>
+             </div>
            </div>
         ) : (
           <div className="flex flex-col gap-6">
             {/* List View Placeholder */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <ChevronDown className="w-4 h-4 text-gray-900 dark:text-gray-100" />
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">To Do</span>
-              </div>
-              <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto bg-white dark:bg-zinc-900">
-                <table className="w-full text-left text-sm min-w-[600px]">
-                  <thead className="bg-gray-50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-800">
-                    <tr>
-                      <th className="px-6 py-3">Task</th>
-                      {visibleFields.Priority && <th className="px-6 py-3 w-32">Priority</th>}
-                      {visibleFields.Members && <th className="px-6 py-3 w-32">Members</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                    {todoTasks.map(task => (
-                      <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-zinc-800 cursor-pointer" onClick={() => setSelectedTaskId(task.id)}>
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{task.title}</td>
-                        {visibleFields.Priority && <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{task.priority}</td>}
-                        {visibleFields.Members && (
-                          <td className="px-6 py-4">
-                            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
-                          </td>
-                        )}
+            {[
+              { id: 'TODO', label: 'To Do', tasks: todoTasks },
+              { id: 'IN_PROGRESS', label: 'Doing', tasks: doingTasks },
+              { id: 'DONE', label: 'Completed', tasks: doneTasks },
+              { id: 'ON_HOLD', label: 'On Hold', tasks: onHoldTasks },
+            ].map(column => (
+              <div key={column.id}>
+                <div className="flex items-center gap-2 mb-3">
+                  <ChevronDown className="w-4 h-4 text-gray-900 dark:text-gray-100" />
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{column.label}</span>
+                </div>
+                <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto bg-white dark:bg-zinc-900">
+                  <table className="w-full text-left text-sm min-w-[600px]">
+                    <thead className="bg-gray-50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-800">
+                      <tr>
+                        <th className="px-6 py-3">Task</th>
+                        {visibleFields.Priority && <th className="px-6 py-3 w-32">Priority</th>}
+                        {visibleFields.Members && <th className="px-6 py-3 w-32">Members</th>}
                       </tr>
-                    ))}
-                    <tr className="hover:bg-gray-50">
-                      <td colSpan={5} className="px-6 py-3">
-                        <button 
-                          onClick={() => handleCreateTask('TODO')}
-                          className="text-gray-500 hover:text-gray-800 font-medium flex items-center gap-2 transition-colors text-sm"
-                        >
-                          <Plus className="w-4 h-4" /> Add Task
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                      {column.tasks.map(task => (
+                        <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-zinc-800 cursor-pointer" onClick={() => setSelectedTaskId(task.id)}>
+                          <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{task.title}</td>
+                          {visibleFields.Priority && <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{task.priority}</td>}
+                          {visibleFields.Members && (
+                            <td className="px-6 py-4">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                      <tr className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                        <td colSpan={5} className="px-6 py-3">
+                          <button 
+                            onClick={() => handleCreateTask(column.id)}
+                            className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-medium flex items-center gap-2 transition-colors text-sm"
+                          >
+                            <Plus className="w-4 h-4" /> Add Task
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
