@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import TaskDetailsModal from "@/components/TaskDetailsModal";
 import api from "@/lib/api";
 import { useSidebar } from "./SidebarContext";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 interface Task {
   id: string;
@@ -83,29 +82,12 @@ export default function DashboardPage() {
     }
   };
 
-  const onDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
-    const newStatus = destination.droppableId;
-    
-    // Optimistic UI update
-    setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: newStatus } : t));
-
-    // Backend update
-    try {
-      await api.patch(`/tasks/${draggableId}`, { status: newStatus });
-    } catch (err) {
-      console.error("Failed to update task status", err);
-      fetchTasks(); // Revert on error
-    }
-  };
-
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
     
+    // If priorityFilter has items, task priority must be in the array. 
+    // Handle null/empty priority as 'None'.
     const taskPriority = task.priority || 'None';
     const matchesPriority = priorityFilter.length === 0 || priorityFilter.includes(taskPriority);
     
@@ -115,61 +97,6 @@ export default function DashboardPage() {
   const todoTasks = filteredTasks.filter(t => t.status === 'TODO');
   const doingTasks = filteredTasks.filter(t => t.status === 'IN_PROGRESS');
   const doneTasks = filteredTasks.filter(t => t.status === 'DONE');
-
-  const renderTaskCard = (task: Task, index: number) => (
-    <Draggable key={task.id} draggableId={task.id} index={index}>
-      {(provided, snapshot) => (
-        <div 
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          style={provided.draggableProps.style}
-          className={cn(
-            "relative bg-white dark:bg-zinc-900 p-4 rounded-xl border shadow-sm flex flex-col gap-4 cursor-pointer transition-colors",
-            snapshot.isDragging ? "border-primary/50 shadow-lg rotate-2 z-50 scale-105" : "border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600"
-          )}
-          onClick={() => setSelectedTaskId(task.id)}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{task.title}</h3>
-            <div className="relative">
-              <button 
-                onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(activeTaskMenu === task.id ? null : task.id); }}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 tracking-widest leading-none font-bold pb-1.5 px-1 transition-colors"
-              >
-                ...
-              </button>
-              {activeTaskMenu === task.id && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(null); }} />
-                  <div className="absolute top-full right-0 mt-1 w-28 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); setActiveTaskMenu(null); }}
-                      className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      Delete Task
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          {(visibleFields.Members || visibleFields.Priority) && (
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-2">
-                {visibleFields.Members && (
-                  <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
-                )}
-              </div>
-              {visibleFields.Priority && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded">{task.priority}</span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </Draggable>
-  );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#FDFDFD] dark:bg-[#0a0a0a] animate-fade-in animate-slide-up">
@@ -216,6 +143,7 @@ export default function DashboardPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setFieldsOpen(false)} />
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg shadow-gray-200/50 dark:shadow-black/50 z-50 p-2 animate-scale-in origin-top-right">
+                {/* View Toggle */}
                 <div className="flex p-1 bg-gray-100 dark:bg-zinc-800/50 rounded-lg mb-2">
                   <button 
                     onClick={() => setView('list')}
@@ -263,6 +191,7 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Filter Popover */}
           <div className="relative">
             <button 
               onClick={() => setFilterOpen(!filterOpen)}
@@ -337,128 +266,197 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Main Board/List Content */}
       <div className="flex-1 overflow-auto px-4 md:px-8 pb-4 md:pb-8">
         {loading ? (
            <div className="flex items-center justify-center h-full"><span className="text-gray-400">Loading tasks...</span></div>
         ) : view === 'board' ? (
-           <DragDropContext onDragEnd={onDragEnd}>
-             <div className="flex gap-6 h-full items-start">
-               
-               {/* To Do Column */}
-               <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
-                 <div className="flex items-center justify-between px-1">
-                   <div className="flex items-center gap-2">
-                     <div className="w-4 h-4 border-2 border-gray-400 dark:border-gray-500 rounded-sm grid grid-cols-2 gap-0.5 p-[1px] opacity-70">
-                       <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
-                       <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
-                       <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
-                       <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
-                     </div>
-                     <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">To Do</span>
+           <div className="flex gap-6 h-full items-start">
+             {/* To Do Column */}
+             <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
+               <div className="flex items-center justify-between px-1">
+                 <div className="flex items-center gap-2">
+                   <div className="w-4 h-4 border-2 border-gray-400 dark:border-gray-500 rounded-sm grid grid-cols-2 gap-0.5 p-[1px] opacity-70">
+                     <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
+                     <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
+                     <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
+                     <div className="bg-gray-400 dark:bg-gray-500 rounded-[1px]" />
                    </div>
-                   <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
-                     <button onClick={() => handleCreateTask('TODO')} className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors"><Plus className="w-4 h-4" /></button>
-                     <div className="relative">
-                       <button onClick={() => setActiveColumnMenu(activeColumnMenu === 'TODO' ? null : 'TODO')} className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded tracking-widest leading-none font-bold pb-1.5 transition-colors">...</button>
-                       {activeColumnMenu === 'TODO' && (
-                         <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1">
-                           <button onClick={() => { handleClearColumn('TODO'); setActiveColumnMenu(null); }} className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50">Clear Column</button>
+                   <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">To Do</span>
+                 </div>
+                 <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                   <button 
+                     onClick={() => handleCreateTask('TODO')}
+                     className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors"
+                   >
+                     <Plus className="w-4 h-4" />
+                   </button>
+                   <div className="relative">
+                     <button 
+                       onClick={() => setActiveColumnMenu(activeColumnMenu === 'TODO' ? null : 'TODO')}
+                       className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded tracking-widest leading-none font-bold pb-1.5 transition-colors"
+                     >
+                       ...
+                     </button>
+                     {activeColumnMenu === 'TODO' && (
+                       <>
+                         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveColumnMenu(null); }} />
+                         <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                           <button 
+                             onClick={() => { handleClearColumn('TODO'); setActiveColumnMenu(null); }}
+                             className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                           >
+                             Clear Column
+                           </button>
                          </div>
-                       )}
-                     </div>
+                       </>
+                     )}
                    </div>
                  </div>
-                 
-                 <Droppable droppableId="TODO">
-                   {(provided, snapshot) => (
-                     <div
-                       ref={provided.innerRef}
-                       {...provided.droppableProps}
-                       className={cn("flex flex-col gap-3 min-h-[150px] transition-colors rounded-lg", snapshot.isDraggingOver ? "bg-gray-100/50 dark:bg-zinc-800/50" : "")}
-                     >
-                       {todoTasks.map((task, index) => renderTaskCard(task, index))}
-                       {provided.placeholder}
-                     </div>
-                   )}
-                 </Droppable>
-                 
-                 <button onClick={() => handleCreateTask('TODO')} className="text-gray-500 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 rounded-md w-full text-left mt-1"><Plus className="w-4 h-4" /> Add Task</button>
                </div>
                
-               {/* Doing Column */}
-               <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
-                 <div className="flex items-center justify-between px-1">
-                   <div className="flex items-center gap-2">
-                     <div className="w-4 h-4 border-2 border-gray-400 rounded-sm opacity-70" />
-                     <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Doing</span>
-                   </div>
-                   <div className="flex items-center gap-1 text-gray-400">
-                     <button onClick={() => handleCreateTask('IN_PROGRESS')} className="p-1 hover:bg-gray-200 rounded"><Plus className="w-4 h-4" /></button>
+               {todoTasks.map(task => (
+                 <div 
+                    key={task.id}
+                    className="relative bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm flex flex-col gap-4 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-600 transition-colors"
+                    onClick={() => setSelectedTaskId(task.id)}
+                 >
+                   <div className="flex items-start justify-between gap-2">
+                     <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{task.title}</h3>
                      <div className="relative">
-                       <button onClick={() => setActiveColumnMenu(activeColumnMenu === 'IN_PROGRESS' ? null : 'IN_PROGRESS')} className="p-1 hover:bg-gray-200 rounded tracking-widest leading-none font-bold pb-1.5">...</button>
-                       {activeColumnMenu === 'IN_PROGRESS' && (
-                         <div className="absolute top-full right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                           <button onClick={() => { handleClearColumn('IN_PROGRESS'); setActiveColumnMenu(null); }} className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50">Clear Column</button>
-                         </div>
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(activeTaskMenu === task.id ? null : task.id); }}
+                         className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 tracking-widest leading-none font-bold pb-1.5 px-1 transition-colors"
+                       >
+                         ...
+                       </button>
+                       {activeTaskMenu === task.id && (
+                         <>
+                           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(null); }} />
+                           <div className="absolute top-full right-0 mt-1 w-28 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); setActiveTaskMenu(null); }}
+                               className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                             >
+                               Delete Task
+                             </button>
+                           </div>
+                         </>
                        )}
                      </div>
                    </div>
-                 </div>
-
-                 <Droppable droppableId="IN_PROGRESS">
-                   {(provided, snapshot) => (
-                     <div
-                       ref={provided.innerRef}
-                       {...provided.droppableProps}
-                       className={cn("flex flex-col gap-3 min-h-[150px] transition-colors rounded-lg", snapshot.isDraggingOver ? "bg-gray-100/50 dark:bg-zinc-800/50" : "")}
-                     >
-                       {doingTasks.map((task, index) => renderTaskCard(task, index))}
-                       {provided.placeholder}
-                     </div>
-                   )}
-                 </Droppable>
-
-                 <button onClick={() => handleCreateTask('IN_PROGRESS')} className="text-gray-500 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 rounded-md w-full text-left mt-1"><Plus className="w-4 h-4" /> Add Task</button>
-               </div>
-
-               {/* Done Column */}
-               <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
-                 <div className="flex items-center justify-between px-1">
-                   <div className="flex items-center gap-2">
-                     <div className="w-4 h-4 border-2 border-gray-400 rounded-sm opacity-70 bg-gray-400" />
-                     <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Done</span>
-                   </div>
-                   <div className="flex items-center gap-1 text-gray-400">
-                     <button onClick={() => handleCreateTask('DONE')} className="p-1 hover:bg-gray-200 rounded"><Plus className="w-4 h-4" /></button>
-                     <div className="relative">
-                       <button onClick={() => setActiveColumnMenu(activeColumnMenu === 'DONE' ? null : 'DONE')} className="p-1 hover:bg-gray-200 rounded tracking-widest leading-none font-bold pb-1.5">...</button>
-                       {activeColumnMenu === 'DONE' && (
-                         <div className="absolute top-full right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                           <button onClick={() => { handleClearColumn('DONE'); setActiveColumnMenu(null); }} className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50">Clear Column</button>
-                         </div>
+                   {(visibleFields.Members || visibleFields.Priority) && (
+                     <div className="flex items-center justify-between mt-1">
+                       <div className="flex items-center gap-2">
+                         {visibleFields.Members && (
+                           <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
+                         )}
+                       </div>
+                       {visibleFields.Priority && (
+                         <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded">{task.priority}</span>
                        )}
                      </div>
-                   </div>
-                 </div>
-
-                 <Droppable droppableId="DONE">
-                   {(provided, snapshot) => (
-                     <div
-                       ref={provided.innerRef}
-                       {...provided.droppableProps}
-                       className={cn("flex flex-col gap-3 min-h-[150px] transition-colors rounded-lg", snapshot.isDraggingOver ? "bg-gray-100/50 dark:bg-zinc-800/50" : "")}
-                     >
-                       {doneTasks.map((task, index) => renderTaskCard(task, index))}
-                       {provided.placeholder}
-                     </div>
                    )}
-                 </Droppable>
-
-                 <button onClick={() => handleCreateTask('DONE')} className="text-gray-500 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 rounded-md w-full text-left mt-1"><Plus className="w-4 h-4" /> Add Task</button>
-               </div>
-
+                 </div>
+               ))}
+               
+               <button 
+                 onClick={() => handleCreateTask('TODO')}
+                 className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors w-full text-left mt-1"
+               >
+                 <Plus className="w-4 h-4" /> Add Task
+               </button>
              </div>
-           </DragDropContext>
+             
+             {/* Doing Column */}
+             <div className="w-[320px] shrink-0 bg-gray-50/50 dark:bg-zinc-800/30 rounded-xl p-3 border border-gray-100 dark:border-zinc-800 flex flex-col gap-3">
+               <div className="flex items-center justify-between px-1">
+                 <div className="flex items-center gap-2">
+                   <div className="w-4 h-4 border-2 border-gray-400 dark:border-gray-500 rounded-sm opacity-70" />
+                   <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Doing</span>
+                 </div>
+                 <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                   <button 
+                     onClick={() => handleCreateTask('IN_PROGRESS')}
+                     className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded transition-colors"
+                   >
+                     <Plus className="w-4 h-4" />
+                   </button>
+                   <div className="relative">
+                     <button 
+                       onClick={() => setActiveColumnMenu(activeColumnMenu === 'IN_PROGRESS' ? null : 'IN_PROGRESS')}
+                       className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-gray-300 rounded tracking-widest leading-none font-bold pb-1.5 transition-colors"
+                     >
+                       ...
+                     </button>
+                     {activeColumnMenu === 'IN_PROGRESS' && (
+                       <>
+                         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveColumnMenu(null); }} />
+                         <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                           <button 
+                             onClick={() => { handleClearColumn('IN_PROGRESS'); setActiveColumnMenu(null); }}
+                             className="w-full text-left px-4 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                           >
+                             Clear Column
+                           </button>
+                         </div>
+                       </>
+                     )}
+                   </div>
+                 </div>
+               </div>
+               {doingTasks.map(task => (
+                 <div 
+                    key={task.id} 
+                    className="relative bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm flex flex-col gap-4 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-600 transition-colors"
+                    onClick={() => setSelectedTaskId(task.id)}
+                 >
+                   <div className="flex items-start justify-between gap-2">
+                     <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{task.title}</h3>
+                     <div className="relative">
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(activeTaskMenu === task.id ? null : task.id); }}
+                         className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 tracking-widest leading-none font-bold pb-1.5 px-1 transition-colors"
+                       >
+                         ...
+                       </button>
+                       {activeTaskMenu === task.id && (
+                         <>
+                           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveTaskMenu(null); }} />
+                           <div className="absolute top-full right-0 mt-1 w-28 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg z-20 py-1 animate-scale-in origin-top-right">
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); setActiveTaskMenu(null); }}
+                               className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                             >
+                               Delete Task
+                             </button>
+                           </div>
+                         </>
+                       )}
+                     </div>
+                   </div>
+                   {(visibleFields.Members || visibleFields.Priority) && (
+                     <div className="flex items-center justify-between mt-1">
+                       <div className="flex items-center gap-2">
+                         {visibleFields.Members && (
+                           <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" /></div>
+                         )}
+                       </div>
+                       {visibleFields.Priority && (
+                         <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded">{task.priority}</span>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               ))}
+               <button 
+                 onClick={() => handleCreateTask('IN_PROGRESS')}
+                 className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors w-full text-left mt-1"
+               >
+                 <Plus className="w-4 h-4" /> Add Task
+               </button>
+             </div>
+           </div>
         ) : (
           <div className="flex flex-col gap-6">
             {/* List View Placeholder */}
