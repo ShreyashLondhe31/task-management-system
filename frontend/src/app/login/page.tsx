@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Triangle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const { loginAsGuest, refreshUser } = useAuth();
@@ -22,7 +23,7 @@ export default function LoginPage() {
           router.push('/dashboard');
         });
       } else if (error) {
-        alert("Google authentication failed.");
+        toast.error("Google authentication failed.");
       }
     }
   }, [refreshUser, router]);
@@ -32,9 +33,9 @@ export default function LoginPage() {
     try {
       await loginAsGuest();
       router.push('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to login as guest");
+      toast.error(err.response?.data?.message || err.message || "Failed to login as guest");
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export default function LoginPage() {
             </button>
             
             <button 
-              onClick={() => window.location.href = "http://localhost:3001/auth/google"}
+              onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/google`}
               className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
