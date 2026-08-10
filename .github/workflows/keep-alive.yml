@@ -1,0 +1,14 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render's 15-minute inactivity sleep
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Endpoint
+        run: curl -f ${{ secrets.BACKEND_URL }}/health || echo "Ping failed, but workflow will continue"
