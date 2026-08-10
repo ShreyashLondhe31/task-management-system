@@ -42,19 +42,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-      <div className="w-full max-w-md p-8 flex flex-col items-center">
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-md p-6 flex flex-col items-center">
         
         {/* Logo */}
-        <div className="flex items-center gap-2 mb-8">
-          <div className="bg-black text-white p-1.5 rounded-md flex items-center justify-center">
-            <Triangle className="w-5 h-5 fill-white" />
+        <div className="flex items-center gap-2.5 mb-10">
+          <div className="bg-[#111111] text-white p-1.5 rounded-xl flex items-center justify-center shadow-sm">
+            <Triangle className="w-5 h-5 fill-white" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-xl tracking-tight">Pyramid</span>
+          <span className="font-bold text-xl tracking-tight text-gray-900">Pyramid</span>
         </div>
 
         {/* Card */}
-        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center">
+        <div className="w-full bg-white rounded-[32px] border border-gray-200 p-10 flex flex-col items-center">
           
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
             Let&apos;s get back on track
@@ -67,14 +67,14 @@ export default function LoginPage() {
             <button 
               onClick={handleGuestLogin}
               disabled={loading}
-              className="w-full bg-[#111111] hover:bg-black text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center disabled:opacity-70"
+              className="w-full bg-[#1A1A1A] hover:bg-black text-white font-medium py-3 rounded-full transition-colors flex items-center justify-center disabled:opacity-70"
             >
               {loading ? "Logging in..." : "Continue as Guest"}
             </button>
             
             <button 
               onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/google`}
-              className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-medium py-3 rounded-full transition-colors flex items-center justify-center gap-3"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
