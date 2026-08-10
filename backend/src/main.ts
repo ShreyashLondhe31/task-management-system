@@ -8,8 +8,13 @@ async function bootstrap() {
   
   // Security
   app.use(helmet());
+  let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  if (frontendUrl !== 'http://localhost:3000' && !frontendUrl.startsWith('http')) {
+    frontendUrl = `https://${frontendUrl}`;
+  }
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: frontendUrl,
     credentials: true,
   });
   
